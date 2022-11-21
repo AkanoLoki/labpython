@@ -1,4 +1,5 @@
-# Python script to convert exported ancestran node to defattr format
+# Python script to convert exported ancestral node to defattr format
+# Version 1.0 2022/11/18
 # Lufan Xiao
 # lux011@brandeis.edu
 

@@ -1,4 +1,5 @@
 # Python script to convert exported ancestral node to defattr format
+# Version 2.0 2022/11/18
 # Lufan Xiao
 # lux011@brandeis.edu
 
@@ -7,29 +8,9 @@ from itertools import groupby
 import os.path
 import sys
 
-# Helper method to decode fasta
-
-
-def fasta_iter(rFile):
-    # modified from Brent Pedersen
-    # Correct Way To Parse A Fasta File In Python
-    # given a fasta file. yield tuples of header, sequence
-    # ditch the boolean (x[0]) and just keep the header or sequence since
-    # we know they alternate.
-    fList = []
-    faiter = (x[1] for x in groupby(rFile, lambda line: line[0] == ">"))
-
-    for header in faiter:
-        # drop the ">"
-        headerStr = header.__next__()[1:].strip()
-
-        # join all sequence lines to one.
-        seq = "".join(s.strip() for s in faiter.__next__())
-
-        fList.append([headerStr, seq])
-    return fList
-
 # A small struct like class to store PostPs and original MSA numbering.
+# Exported data only contain 3 most probable amino acid posterior probability.
+# With a minimum resolution of 0.001 (0.1%)
 
 
 class SMPPosts():
@@ -46,17 +27,18 @@ class SMPPosts():
         return 'MSA SITE#' + str(self.site) + ', PostP: ' + self.aa1 + '=' + self.post1 + ' ' + self.aa2 + '=' + self.post2 + ' ' + self.aa3 + '=' + self.post3
 
 
-# Arguments
-argP = argparse.ArgumentParser(
+# Arguments Parser
+parser = argparse.ArgumentParser(
     description='Converts ancestral node output SMP sequence posterior probability to .defattr format')
-argP.add_argument('-i', '--input', type=str,
-                  help='file name and path of input file', required=True)
-argP.add_argument('-o', '--output', type=str,
-                  help='file name and path of output file', required=True)
-argP.add_argument('-v', '--verbose', action='store_true', default=False,
-                  help='prints detailed conversion progress to console.')
+parser.add_argument('-i', '--input', type=str,
+                    help='file name and path of input file', required=True)
+parser.add_argument('-o', '--output', type=str,
+                    help='file name and path of output file', required=True)
+parser.add_argument('-v', '--verbose', action='store_true', default=False,
+                    help='prints detailed conversion progress to console.')
 
-args = argP.parse_args(sys.argv[1:])
+# argparse input: program name is stripped
+args = parser.parse_args(sys.argv[1:])
 
 # Load input file
 try:
@@ -74,7 +56,7 @@ overwrite = 'N'
 if os.path.exists(args.output):
     # File exists, overwrite without consent is dangerous
     overwrite = input(
-        '[INFO] Output file "' + args.output + '" exists. Do you want to overwrite? (Y/n) ')
+        '[INFO] Output file "' + args.output + '" exists. Overwriting and loss of previous file content is IRREVERSIBLE once program continues past this point. \nDo you want to overwrite? (Y/n) ')
     while overwrite != 'Y':
         if overwrite == 'y' or overwrite == '':
             overwrite = input(
@@ -154,7 +136,7 @@ for line in Lines:
             post.post3 = line[32:37]
         except Exception as err:
             print("[WARN] There's an error parsing posterior probability from the input file at line " +
-                  str(lCount)+', SITE #' + str(siteN)+'renumbered AA#'+str(len(postList)+1)+', some default values were used at this position.')
+                  str(lCount)+', SITE #' + str(siteN)+'renumbered AA#'+str(len(postList)+1)+', some default values (0.000) were used at this position.')
             if args.verbose:
                 print(err)
 
@@ -177,27 +159,33 @@ for line in Lines:
             isFasta = False
 
 
-# List all fasta in file, ditch_gaps or sigs
-fSeqs = []
-fNames = []
+# List all fasta in file, ditch_gaps or sigs, store pairs in same index
+fSeqs = []  # FASTA sequences
+fNames = [] # FASTA names
 print('Fasta formatted protein sequence in file ' + args.input + ':')
 fCount = 0
 for f in fDecoded:
+    # Exclude gapped sequence and sigs pseudosequence
     if f[0].find('smp_gaps') == -1 and f[0] != 'sigs':
         fCount += 1
         print('[' + str(fCount) + '] ' + f[0])
         if args.verbose:
             print(f[1])
-            print('Normal FASTA sequence.')
+            print('(Normal FASTA sequence)\n')
         fNames.append(f[0])
         fSeqs.append(f[1])
 fOut = -1
 while fOut < 0:
     fInput = input(
-        'Please input the sequence name or index (in brackets) to generate and export posterior probabilities: ')
+        'Please input the sequence name or index (without square brackets) to generate and export posterior probabilities: ')
     try:
+        # convert 1 based index (displayed) to 0 based index (actual)
         fOut = int(fInput) - 1
     except ValueError as error:
+        if args.verbose:
+            print(error)
+            print(
+                "ValueError indicates input string is not a proper integer, parsing as FASTA name")
         fOut = fNames.index(fInput)
 
     if fOut < 0 or fOut >= fCount:
