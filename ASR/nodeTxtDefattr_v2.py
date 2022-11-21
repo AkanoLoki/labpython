@@ -161,7 +161,7 @@ for line in Lines:
 
 # List all fasta in file, ditch_gaps or sigs, store pairs in same index
 fSeqs = []  # FASTA sequences
-fNames = [] # FASTA names
+fNames = []  # FASTA names
 print('Fasta formatted protein sequence in file ' + args.input + ':')
 fCount = 0
 for f in fDecoded:
@@ -210,6 +210,7 @@ for i in range(0, len(fSeqs[fOut])):
         print('Output line ' + str(i+3) +
               ' (AA# '+str(i+1) + '): ' + str(outList[i]))
 
+#Write to file
 outF.writelines(outList)
 outF.close()
 
@@ -221,8 +222,9 @@ if args.verbose:
     elif alignLen == 0:
         print('alignLen data was found in input file at line ' +
               str(alignLenLine) + ', but could not be parsed.')
-    print('alignlen read from input file at line ' +
-          str(alignLenLine)+': '+str(alignLen))
+    else:
+        print('alignlen read from input file at line ' +
+              str(alignLenLine)+': '+str(alignLen))
     print('Total sites and posterior probability parsed: ' + str(readLen))
 
 exit(0)
